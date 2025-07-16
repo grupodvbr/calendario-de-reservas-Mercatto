@@ -144,6 +144,11 @@ document.addEventListener('DOMContentLoaded', async function () {
         <b>Status:</b> ${p.status}<br>
         ${p.valorFinal ? `<b>Valor Final:</b> R$ ${p.valorFinal}<br>` : ""}
       `;
+
+      // Oculta botões se já estiver concluída
+      btnEditar.style.display = p.status === "Concluída" ? "none" : "inline-block";
+      btnConcluir.style.display = p.status === "Concluída" ? "none" : "inline-block";
+
       popup.style.display = 'flex';
     }
   });
@@ -168,6 +173,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     .then(r => r.text())
     .then(resp => {
       alert("✅ Reserva marcada como concluída com valor final!");
+      btnEditar.style.display = "none";
+      btnConcluir.style.display = "none";
       popup.style.display = "none";
       calendar.refetchEvents();
     });
