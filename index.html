@@ -21,7 +21,6 @@
       text-align: center;
       font-size: 24px;
       font-weight: bold;
-      letter-spacing: 1px;
     }
 
     #calendar {
@@ -33,74 +32,150 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
 
-    .fc-event-title {
-      font-weight: bold;
+    .fc-event-title { font-weight: bold; }
+
+    #popup {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
     }
+
+    #popup-content {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      margin: 10px 5px;
+      border: none;
+      border-radius: 5px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .btn-editar { background-color: #1976D2; color: white; }
+    .btn-concluir { background-color: #4CAF50; color: white; }
+    .btn-fechar { background-color: #ccc; color: black; }
   </style>
 </head>
 <body>
 
-  <header>📅 Painel de Reservas</header>
-  <div id="calendar"></div>
+<header>📅 Painel de Reservas</header>
+<div id="calendar"></div>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', async function () {
-      const calendarEl = document.getElementById('calendar');
+<!-- Modal -->
+<div id="popup">
+  <div id="popup-content">
+    <h3 id="popup-titulo"></h3>
+    <p id="popup-detalhes"></p>
+    <button class="btn btn-editar" id="btn-editar">✏️ Editar</button>
+    <button class="btn btn-concluir" id="btn-concluir">✅ Concluir</button>
+    <button class="btn btn-fechar" onclick="document.getElementById('popup').style.display='none'">Fechar</button>
+  </div>
+</div>
 
-      const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
-        locale: 'pt-br',
-        headerToolbar: {
-          left: 'prev,next today',
-          center: 'title',
-          right: 'dayGridMonth,timeGridWeek,listWeek'
-        },
-        events: async function (info, successCallback, failureCallback) {
-          try {
-            const res = await fetch('https://script.google.com/macros/s/AKfycbzTC8CfbqJ83hFENAblXTDu215vLox78FiZ4YbHGpG4kgzrqofaP3zwaM7YYm0sC4gf/exec');
-            const dados = await res.json();
+<script>
+document.addEventListener('DOMContentLoaded', async function () {
+  const calendarEl = document.getElementById('calendar');
+  const popup = document.getElementById('popup');
+  const titulo = document.getElementById('popup-titulo');
+  const detalhes = document.getElementById('popup-detalhes');
+  const btnEditar = document.getElementById('btn-editar');
+  const btnConcluir = document.getElementById('btn-concluir');
+  let reservaAtual = null;
 
-            const eventos = dados.map(item => ({
-              title: `${item.nome} (${item.pessoas} pessoas)`,
-              start: item.datahora || item.dataHora,
-              extendedProps: {
-                nome: item.nome,
-                pessoas: item.pessoas,
-                mesa: item.mesa,
-                banco: item.banco,
-                valor: item.valorEstimado || item.valorestimado,
-                antecipado: item.pagamentoAntecipado || item.antecipado,
-                email: item.email
-              }
-            }));
+  const calendar = new FullCalendar.Calendar(calendarEl, {
+    initialView: 'dayGridMonth',
+    locale: 'pt-br',
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'dayGridMonth,timeGridWeek,listWeek'
+    },
+    events: async function (info, successCallback, failureCallback) {
+      try {
+        const res = await fetch('https://script.google.com/macros/s/AKfycbzQAYIt4G8Ryo0gvwvO4D4m5gwlZivlsMn0gegFzzURboVCjYL8g3szW7yg2di9RuaN/exec');
+        const dados = await res.json();
 
-            successCallback(eventos);
-          } catch (err) {
-            console.error("Erro ao buscar eventos:", err);
-            failureCallback(err);
+        const eventos = dados.map(item => ({
+          title: `${item.nome} (${item.pessoas} pessoas)`,
+          start: item.datahora || item.dataHora,
+          backgroundColor: item.status === "Concluída" ? "#4CAF50" : "",
+          extendedProps: {
+            nome: item.nome,
+            email: item.email,
+            mesa: item.mesa,
+            pessoas: item.pessoas,
+            banco: item.banco,
+            valorEstimado: item.valorEstimado || '0,00',
+            pagamentoAntecipado: item.pagamentoAntecipado || '0,00',
+            status: item.status || 'Pendente',
+            valorFinal: item.valorFinal || ''
           }
-        },
-        eventClick: function(info) {
-          const evento = info.event;
-          const p = evento.extendedProps;
+        }));
 
-          const editarURL = `formulario.html?nome=${encodeURIComponent(p.nome)}&email=${encodeURIComponent(p.email)}&mesa=${encodeURIComponent(p.mesa)}&banco=${encodeURIComponent(p.banco)}&valor=${p.valor}&antecipado=${p.antecipado}`;
+        successCallback(eventos);
+      } catch (err) {
+        console.error("Erro ao buscar eventos:", err);
+        failureCallback(err);
+      }
+    },
+    eventClick: function(info) {
+      const p = info.event.extendedProps;
+      reservaAtual = p;
 
-          const mensagem =
-            `🔔 Reserva de ${evento.title}\n` +
-            `📍 Mesa: ${p.mesa || '---'}\n` +
-            `🏦 Banco: ${p.banco || '---'}\n` +
-            `💰 Valor Estimado: R$ ${p.valor || '0,00'}\n` +
-            `💵 Pagamento Antecipado: R$ ${p.antecipado || '0,00'}\n\n` +
-            `✏️ Editar reserva: ${editarURL}`;
+      titulo.innerText = `Reserva de ${p.nome}`;
+      detalhes.innerHTML = `
+        <b>Mesa:</b> ${p.mesa}<br>
+        <b>Pessoas:</b> ${p.pessoas}<br>
+        <b>Banco:</b> ${p.banco}<br>
+        <b>Valor:</b> R$ ${p.valorEstimado}<br>
+        <b>Antecipado:</b> R$ ${p.pagamentoAntecipado}<br>
+        <b>Status:</b> ${p.status}<br>
+        ${p.valorFinal ? `<b>Valor Final:</b> R$ ${p.valorFinal}<br>` : ""}
+      `;
+      popup.style.display = 'flex';
+    }
+  });
 
-          alert(mensagem);
-        }
-      });
+  btnEditar.onclick = function () {
+    const url = `https://docs.google.com/spreadsheets/d/1w1OitP5MIJnzuZhQEheXsTfAcKceqt3eukukMBvMW78/edit#gid=0`;
+    window.open(url, '_blank');
+  };
 
-      calendar.render();
+  btnConcluir.onclick = function () {
+    const valorFinal = prompt("Digite o valor final da reserva:");
+    if (!valorFinal) return;
+
+    fetch("https://script.google.com/macros/s/AKfycbzQAYIt4G8Ryo0gvwvO4D4m5gwlZivlsMn0gegFzzURboVCjYL8g3szW7yg2di9RuaN/exec", {
+      method: "POST",
+      body: JSON.stringify({
+        acao: "concluir",
+        email: reservaAtual.email,
+        valorFinal: valorFinal
+      })
+    })
+    .then(r => r.text())
+    .then(resp => {
+      alert("✅ Reserva marcada como concluída com valor final!");
+      popup.style.display = "none";
+      calendar.refetchEvents();
     });
-  </script>
+  };
+
+  calendar.render();
+});
+</script>
 
 </body>
 </html>
