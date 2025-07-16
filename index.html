@@ -2,8 +2,8 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>Painel de Reservas - Calendário</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Painel de Reservas - Completo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
   <style>
@@ -13,7 +13,6 @@
       margin: 0;
       padding: 0;
     }
-
     header {
       background-color: #2196F3;
       color: white;
@@ -22,18 +21,17 @@
       font-size: 24px;
       font-weight: bold;
     }
-
     #calendar {
       max-width: 1000px;
-      margin: 40px auto 20px auto;
+      margin: 40px auto;
       padding: 20px;
       background: #fff;
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
-
-    .fc-event-title { font-weight: bold; }
-
+    .fc-event-title {
+      font-weight: bold;
+    }
     #popup {
       display: none;
       position: fixed;
@@ -43,7 +41,6 @@
       align-items: center;
       z-index: 1000;
     }
-
     #popup-content {
       background: white;
       padding: 30px;
@@ -53,7 +50,6 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       text-align: center;
     }
-
     .btn {
       padding: 10px 20px;
       margin: 10px 5px;
@@ -62,35 +58,20 @@
       font-weight: bold;
       cursor: pointer;
     }
-
     .btn-editar { background-color: #1976D2; color: white; }
     .btn-concluir { background-color: #4CAF50; color: white; }
     .btn-fechar { background-color: #ccc; color: black; }
-
-    .resumo-bloco {
+    .resumo-box {
       max-width: 1000px;
-      margin: 0 auto 20px auto;
+      margin: 20px auto;
+      background: #fff;
       padding: 20px;
-      background: white;
       border-radius: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
-
-    .resumo-bloco h3 {
-      margin-top: 0;
-      color: #333;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .resumo-bloco ul {
-      padding-left: 20px;
-      margin-top: 10px;
-    }
-
-    .resumo-bloco li {
-      margin-bottom: 6px;
+    .reserva-dia span.nome {
+      color: #1976D2;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -99,23 +80,18 @@
 <header>📅 Painel de Reservas</header>
 <div id="calendar"></div>
 
-<!-- Resumos -->
-<div class="resumo-bloco" id="resumo-dia">
-  <h3>📌 Reservas de Hoje</h3>
-  <ul id="lista-dia"></ul>
-  <p><strong>Valor Total:</strong> <span id="total-dia">R$ 0,00</span></p>
-  <p><strong>Valor Antecipado:</strong> <span id="antecipado-dia">R$ 0,00</span></p>
-  <p><strong>Saldo:</strong> <span id="saldo-dia">R$ 0,00</span></p>
+<div class="resumo-box">
+  <h3>📆 Reservas do Dia</h3>
+  <div id="lista-dia"></div>
+  <hr>
+  <div id="resumo-dia"></div>
 </div>
 
-<div class="resumo-bloco" id="resumo-mes">
-  <h3>📅 Reservas do Mês</h3>
-  <p><strong>Valor Total:</strong> <span id="total-mes">R$ 0,00</span></p>
-  <p><strong>Valor Antecipado:</strong> <span id="antecipado-mes">R$ 0,00</span></p>
-  <p><strong>Saldo:</strong> <span id="saldo-mes">R$ 0,00</span></p>
+<div class="resumo-box">
+  <h3>📊 Reservas do Mês</h3>
+  <div id="resumo-mes"></div>
 </div>
 
-<!-- Modal -->
 <div id="popup">
   <div id="popup-content">
     <h3 id="popup-titulo"></h3>
@@ -135,17 +111,14 @@ document.addEventListener('DOMContentLoaded', async function () {
   const btnEditar = document.getElementById('btn-editar');
   const btnConcluir = document.getElementById('btn-concluir');
   const listaDia = document.getElementById('lista-dia');
-  const totalDia = document.getElementById('total-dia');
-  const antecipadoDia = document.getElementById('antecipado-dia');
-  const saldoDia = document.getElementById('saldo-dia');
-
-  const totalMes = document.getElementById('total-mes');
-  const antecipadoMes = document.getElementById('antecipado-mes');
-  const saldoMes = document.getElementById('saldo-mes');
-
-  const hoje = new Date().toISOString().split("T")[0];
-  const mesAtual = new Date().getMonth();
+  const resumoDia = document.getElementById('resumo-dia');
+  const resumoMes = document.getElementById('resumo-mes');
   let reservaAtual = null;
+
+  let reservas = [];
+  
+  const res = await fetch('https://script.google.com/macros/s/AKfycbzQAYIt4G8Ryo0gvwvO4D4m5gwlZivlsMn0gegFzzURboVCjYL8g3szW7yg2di9RuaN/exec');
+  reservas = await res.json();
 
   const calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',
@@ -155,58 +128,12 @@ document.addEventListener('DOMContentLoaded', async function () {
       center: 'title',
       right: 'dayGridMonth,timeGridWeek,listWeek'
     },
-    events: async function (info, successCallback, failureCallback) {
-      try {
-        const res = await fetch('https://script.google.com/macros/s/AKfycbzQAYIt4G8Ryo0gvwvO4D4m5gwlZivlsMn0gegFzzURboVCjYL8g3szW7yg2di9RuaN/exec');
-        const dados = await res.json();
-
-        let eventos = [];
-        let totalHoje = 0, antecipadoHoje = 0;
-        let totalMesVal = 0, antecipadoMesVal = 0;
-        listaDia.innerHTML = "";
-
-        dados.forEach(item => {
-          const dataObj = new Date(item.datahora);
-          const dataStr = item.datahora?.split("T")[0];
-          const isHoje = dataStr === hoje;
-          const isMesAtual = dataObj.getMonth() === mesAtual;
-
-          const valor = parseFloat(item.valorFinal || item.valorEstimado || 0);
-          const antecipado = parseFloat(item.pagamentoAntecipado || 0);
-
-          if (isHoje) {
-            totalHoje += valor;
-            antecipadoHoje += antecipado;
-            listaDia.innerHTML += `<li>🧍‍♂️ <strong>${item.nome}</strong> - ${item.mesa} (${item.pessoas} pessoas) às ${item.datahora?.substring(11, 16)}</li>`;
-          }
-
-          if (isMesAtual) {
-            totalMesVal += valor;
-            antecipadoMesVal += antecipado;
-          }
-
-          eventos.push({
-            title: `${item.nome} (${item.pessoas} pessoas)`,
-            start: item.datahora,
-            backgroundColor: item.status === "Concluída" ? "#4CAF50" : "",
-            extendedProps: { ...item }
-          });
-        });
-
-        totalDia.textContent = totalHoje.toLocaleString("pt-BR", {style:"currency",currency:"BRL"});
-        antecipadoDia.textContent = antecipadoHoje.toLocaleString("pt-BR", {style:"currency",currency:"BRL"});
-        saldoDia.textContent = (totalHoje - antecipadoHoje).toLocaleString("pt-BR", {style:"currency",currency:"BRL"});
-
-        totalMes.textContent = totalMesVal.toLocaleString("pt-BR", {style:"currency",currency:"BRL"});
-        antecipadoMes.textContent = antecipadoMesVal.toLocaleString("pt-BR", {style:"currency",currency:"BRL"});
-        saldoMes.textContent = (totalMesVal - antecipadoMesVal).toLocaleString("pt-BR", {style:"currency",currency:"BRL"});
-
-        successCallback(eventos);
-      } catch (err) {
-        console.error("Erro ao buscar eventos:", err);
-        failureCallback(err);
-      }
-    },
+    events: reservas.map(item => ({
+      title: `${item.nome} (${item.pessoas})`,
+      start: item.datahora,
+      backgroundColor: item.status === "Concluída" ? "#4CAF50" : "",
+      extendedProps: item
+    })),
     eventClick: function(info) {
       const p = info.event.extendedProps;
       reservaAtual = p;
@@ -222,15 +149,16 @@ document.addEventListener('DOMContentLoaded', async function () {
         ${p.valorFinal ? `<b>Valor Final:</b> R$ ${p.valorFinal}<br>` : ""}
       `;
 
-      btnEditar.style.display = p.status === "Concluída" ? "none" : "inline-block";
-      btnConcluir.style.display = p.status === "Concluída" ? "none" : "inline-block";
+      btnEditar.style.display = p.status === 'Concluída' ? 'none' : 'inline-block';
+      btnConcluir.style.display = p.status === 'Concluída' ? 'none' : 'inline-block';
+
       popup.style.display = 'flex';
     }
   });
+  calendar.render();
 
   btnEditar.onclick = function () {
-    const url = `https://docs.google.com/spreadsheets/d/1w1OitP5MIJnzuZhQEheXsTfAcKceqt3eukukMBvMW78/edit#gid=0`;
-    window.open(url, '_blank');
+    window.open('https://docs.google.com/spreadsheets/d/1w1OitP5MIJnzuZhQEheXsTfAcKceqt3eukukMBvMW78/edit#gid=0', '_blank');
   };
 
   btnConcluir.onclick = function () {
@@ -239,21 +167,70 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     fetch("https://script.google.com/macros/s/AKfycbzQAYIt4G8Ryo0gvwvO4D4m5gwlZivlsMn0gegFzzURboVCjYL8g3szW7yg2di9RuaN/exec", {
       method: "POST",
-      body: JSON.stringify({
-        acao: "concluir",
-        email: reservaAtual.email,
-        valorFinal: valorFinal
-      })
-    })
-    .then(r => r.text())
-    .then(resp => {
-      alert("✅ Reserva marcada como concluída com valor final!");
+      body: JSON.stringify({ acao: "concluir", email: reservaAtual.email, valorFinal })
+    }).then(() => {
+      alert("✅ Concluída com sucesso!");
       popup.style.display = "none";
-      calendar.refetchEvents();
+      location.reload();
     });
   };
 
-  calendar.render();
+  function exibirResumo() {
+    const hoje = new Date();
+    const hojeStr = hoje.toISOString().substring(0, 10);
+    const mesAtual = hoje.getMonth();
+
+    let totalDia = 0, antecipadoDia = 0;
+    let totalMes = 0, antecipadoMes = 0;
+
+    listaDia.innerHTML = reservas.filter(r => r.datahora?.startsWith(hojeStr)).map(r => {
+      totalDia += parseFloat(r.valorEstimado);
+      antecipadoDia += parseFloat(r.pagamentoAntecipado);
+      return `<div class="reserva-dia"><span class="nome" onclick="abrirReservaPorEmail('${r.email}')">${r.nome}</span> - ${r.datahora.slice(11,16)} - ${r.pessoas} pessoas - Mesa ${r.mesa}</div>`;
+    }).join('') || "<i>Nenhuma reserva para hoje.</i>";
+
+    resumoDia.innerHTML = `
+      <p><strong>Valor Total:</strong> R$ ${totalDia.toFixed(2)}</p>
+      <p><strong>Valor Antecipado:</strong> R$ ${antecipadoDia.toFixed(2)}</p>
+      <p><strong>Saldo:</strong> R$ ${(totalDia - antecipadoDia).toFixed(2)}</p>
+    `;
+
+    reservas.forEach(r => {
+      const data = new Date(r.datahora);
+      if (data.getMonth() === mesAtual) {
+        totalMes += parseFloat(r.valorEstimado);
+        antecipadoMes += parseFloat(r.pagamentoAntecipado);
+      }
+    });
+
+    resumoMes.innerHTML = `
+      <p><strong>Valor Total:</strong> R$ ${totalMes.toFixed(2)}</p>
+      <p><strong>Valor Antecipado:</strong> R$ ${antecipadoMes.toFixed(2)}</p>
+      <p><strong>Saldo:</strong> R$ ${(totalMes - antecipadoMes).toFixed(2)}</p>
+    `;
+  }
+
+  window.abrirReservaPorEmail = function(email) {
+    const evento = reservas.find(r => r.email === email);
+    if (evento) {
+      reservaAtual = evento;
+      titulo.innerText = `Reserva de ${evento.nome}`;
+      detalhes.innerHTML = `
+        <b>Mesa:</b> ${evento.mesa}<br>
+        <b>Pessoas:</b> ${evento.pessoas}<br>
+        <b>Banco:</b> ${evento.banco}<br>
+        <b>Valor:</b> R$ ${evento.valorEstimado}<br>
+        <b>Antecipado:</b> R$ ${evento.pagamentoAntecipado}<br>
+        <b>Status:</b> ${evento.status}<br>
+        ${evento.valorFinal ? `<b>Valor Final:</b> R$ ${evento.valorFinal}<br>` : ""}
+      `;
+      btnEditar.style.display = evento.status === 'Concluída' ? 'none' : 'inline-block';
+      btnConcluir.style.display = evento.status === 'Concluída' ? 'none' : 'inline-block';
+      popup.style.display = 'flex';
+    }
+  }
+
+  exibirResumo();
 });
 </script>
 
