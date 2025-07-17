@@ -123,15 +123,26 @@ function formatarHora(data) {
 
 function abrirPopup(p) {
   reservaAtual = p;
+
+  const datasArray = p.datahora.split(',').map(d => new Date(d).toLocaleString('pt-BR')).join('<br>');
+
   document.getElementById('popup-titulo').innerText = `Reserva de ${p.nome}`;
   document.getElementById('popup-detalhes').innerHTML = `
-    <b>Mesa:</b> ${p.mesa}<br>
-    <b>Pessoas:</b> ${p.pessoas}<br>
-    <b>Banco:</b> ${p.banco}<br>
-    <b>Valor:</b> R$ ${p.valorEstimado}<br>
-    <b>Antecipado:</b> R$ ${p.pagamentoAntecipado}<br>
-    <b>Status:</b> ${p.status}<br>
-    ${p.valorFinal ? `<b>Valor Final:</b> R$ ${p.valorFinal}<br>` : ""}
+    <ul style="text-align: left; padding-left: 0; list-style: none;">
+      <li><strong>Nome:</strong> ${p.nome}</li>
+      <li><strong>Email:</strong> ${p.email}</li>
+      <li><strong>Telefone:</strong> ${p.telefone}</li>
+      <li><strong>Pessoas:</strong> ${p.pessoas}</li>
+      <li><strong>Mesa:</strong> ${p.mesa}</li>
+      <li><strong>Data(s):</strong> ${datasArray}</li>
+      <li><strong>Valor Estimado:</strong> R$ ${p.valorEstimado}</li>
+      <li><strong>Antecipado:</strong> R$ ${p.pagamentoAntecipado}</li>
+      <li><strong>Banco:</strong> ${p.banco}</li>
+      <li><strong>Cardápio:</strong> ${p.cardapio}</li>
+      <li><strong>Observações:</strong> ${p.observacoes}</li>
+      ${p.valorFinal ? `<li><strong>Valor Final:</strong> R$ ${p.valorFinal}</li>` : ""}
+      <li><strong>Status:</strong> ${p.status}</li>
+    </ul>
   `;
 
   const botoes = document.getElementById("popup-botoes");
