@@ -85,8 +85,10 @@
   <div id="popup-content">
     <h3 id="popup-titulo"></h3>
     <p id="popup-detalhes"></p>
-    <button class="btn btn-editar" id="btn-editar">✏️ Editar</button>
-    <button class="btn btn-concluir" id="btn-concluir">✅ Concluir</button>
+    <div id="popup-botoes">
+      <button class="btn btn-editar" id="btn-editar">✏️ Editar</button>
+      <button class="btn btn-concluir" id="btn-concluir">✅ Concluir</button>
+    </div>
     <button class="btn btn-fechar" onclick="document.getElementById('popup').style.display='none'">Fechar</button>
   </div>
 </div>
@@ -131,6 +133,10 @@ function abrirPopup(p) {
     <b>Status:</b> ${p.status}<br>
     ${p.valorFinal ? `<b>Valor Final:</b> R$ ${p.valorFinal}<br>` : ""}
   `;
+
+  const botoes = document.getElementById("popup-botoes");
+  botoes.style.display = p.status === "Concluída" ? "none" : "block";
+
   document.getElementById('popup').style.display = 'flex';
 }
 
@@ -227,7 +233,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   };
 
   btnConcluir.onclick = function () {
-    const valorFinal = prompt("Digite o valor final da reserva:");
+    const valorFinal = prompt("Digite o valor final da reserva em dinheiro:");
     if (!valorFinal) return;
 
     fetch("https://script.google.com/macros/s/AKfycbzQAYIt4G8Ryo0gvwvO4D4m5gwlZivlsMn0gegFzzURboVCjYL8g3szW7yg2di9RuaN/exec", {
