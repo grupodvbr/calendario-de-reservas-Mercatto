@@ -205,7 +205,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     },
     events: async function (info, successCallback, failureCallback) {
       try {
-        const res = await fetch('https://script.google.com/macros/s/AKfycbzQAYIt4G8Ryo0gvwvO4D4m5gwlZivlsMn0gegFzzURboVCjYL8g3szW7yg2di9RuaN/exec');
+        const res = await fetch('https://script.google.com/macros/s/AKfycbyzeYqtWTsFfzKOmizG4fSWwgEFfRNKkvm7o7PwM_8FFuApWZhHWAJYfNLL5AQdnb7r/exec');
         const dados = await res.json();
 
         const eventos = dados.map(item => ({
@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     const valorFinal = prompt("Digite o valor final da reserva em dinheiro:");
     if (!valorFinal) return;
 
-    fetch("https://script.google.com/macros/s/AKfycbzQAYIt4G8Ryo0gvwvO4D4m5gwlZivlsMn0gegFzzURboVCjYL8g3szW7yg2di9RuaN/exec", {
+    fetch("https://script.google.com/macros/s/AKfycbyzeYqtWTsFfzKOmizG4fSWwgEFfRNKkvm7o7PwM_8FFuApWZhHWAJYfNLL5AQdnb7r/exec", {
       method: "POST",
       body: JSON.stringify({
         acao: "concluir",
