@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -59,6 +61,7 @@
     .btn-editar { background-color: #1976D2; color: white; }
     .btn-concluir { background-color: #4CAF50; color: white; }
     .btn-fechar { background-color: #ccc; color: black; }
+    .btn-exportar { background-color: #FF9800; color: white; }
     .resumo-bloco {
       max-width: 900px;
       margin: 20px auto;
@@ -78,6 +81,10 @@
 <body>
 
 <header>📅 Painel de Reservas</header>
+<div style="text-align:center; margin-top: 10px;">
+  <button class="btn btn-exportar" onclick="exportarExcel()">📤 Exportar Excel</button>
+  <button class="btn btn-exportar" onclick="exportarPDF()">📄 Exportar PDF</button>
+</div>
 <div id="calendar"></div>
 
 <!-- Modal -->
@@ -110,22 +117,38 @@
 </div>
 
 <script>
+let eventosGlobais = [];
 let reservaAtual = null;
 
-function formatarMoeda(valor) {
-  return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+function exportarExcel() {
+  const dados = eventosGlobais.map(e => e.extendedProps);
+  const ws = XLSX.utils.json_to_sheet(dados);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Reservas");
+  XLSX.writeFile(wb, "reservas.xlsx");
 }
 
-function formatarHora(data) {
-  const d = new Date(data);
-  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+function exportarPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y = 10;
+  eventosGlobais.forEach(e => {
+    const p = e.extendedProps;
+    doc.text(`Reserva: ${p.nome} - ${p.email}`, 10, y);
+    y += 7;
+    doc.text(`Mesa: ${p.mesa}, Pessoas: ${p.pessoas}, Valor: R$ ${p.valorEstimado}`, 10, y);
+    y += 10;
+    if (y > 270) {
+      doc.addPage();
+      y = 10;
+    }
+  });
+  doc.save("reservas.pdf");
 }
 
 function abrirPopup(p) {
   reservaAtual = p;
-
   const datasArray = p.datahora.split(',').map(d => new Date(d).toLocaleString('pt-BR')).join('<br>');
-
   document.getElementById('popup-titulo').innerText = `Reserva de ${p.nome}`;
   document.getElementById('popup-detalhes').innerHTML = `
     <ul style="text-align: left; padding-left: 0; list-style: none;">
@@ -142,13 +165,14 @@ function abrirPopup(p) {
       <li><strong>Observações:</strong> ${p.observacoes}</li>
       ${p.valorFinal ? `<li><strong>Valor Final:</strong> R$ ${p.valorFinal}</li>` : ""}
       <li><strong>Status:</strong> ${p.status}</li>
-    </ul>
-  `;
-
+    </ul>`;
   const botoes = document.getElementById("popup-botoes");
   botoes.style.display = p.status === "Concluída" ? "none" : "block";
-
   document.getElementById('popup').style.display = 'flex';
+}
+
+function formatarMoeda(valor) {
+  return Number(valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 function atualizarResumoDia(eventos) {
@@ -167,7 +191,7 @@ function atualizarResumoDia(eventos) {
     ? "<i>Nenhuma reserva para hoje.</i>"
     : reservasHoje.map(r => {
         const p = r.extendedProps;
-        return `<li><a href="#" onclick='abrirPopup(${JSON.stringify(p)})'><b>${p.nome}</b></a> - ${formatarHora(r.start)} - ${p.pessoas} pessoas - Mesa: ${p.mesa}</li>`;
+        return `<li><a href="#" onclick='abrirPopup(${JSON.stringify(p)})'><b>${p.nome}</b></a> - ${new Date(r.start).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} - ${p.pessoas} pessoas - Mesa: ${p.mesa}</li>`;
       }).join("");
 
   const totalValor = reservasHoje.reduce((s, r) => s + Number(r.extendedProps.valorFinal || r.extendedProps.valorEstimado || 0), 0);
@@ -180,20 +204,14 @@ function atualizarResumoDia(eventos) {
 
 function atualizarResumoMensal(eventos) {
   const resumoPorMes = {};
-
   eventos.forEach(r => {
     const p = r.extendedProps;
     const data = new Date(r.start);
     const chave = data.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
-
-    if (!resumoPorMes[chave]) {
-      resumoPorMes[chave] = { antecipado: 0, receber: 0 };
-    }
-
+    if (!resumoPorMes[chave]) resumoPorMes[chave] = { antecipado: 0, receber: 0 };
     resumoPorMes[chave].antecipado += Number(p.pagamentoAntecipado || 0);
     resumoPorMes[chave].receber += Number(p.valorFinal || p.valorEstimado || 0) - Number(p.pagamentoAntecipado || 0);
   });
-
   const ul = document.getElementById("resumo-mensal");
   ul.innerHTML = Object.entries(resumoPorMes).map(([mes, val]) => {
     const total = val.antecipado + val.receber;
@@ -201,11 +219,8 @@ function atualizarResumoMensal(eventos) {
   }).join("");
 }
 
-document.addEventListener('DOMContentLoaded', async function () {
+window.addEventListener('DOMContentLoaded', async function () {
   const calendarEl = document.getElementById('calendar');
-  const btnEditar = document.getElementById('btn-editar');
-  const btnConcluir = document.getElementById('btn-concluir');
-
   const calendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',
     locale: 'pt-br',
@@ -216,16 +231,15 @@ document.addEventListener('DOMContentLoaded', async function () {
     },
     events: async function (info, successCallback, failureCallback) {
       try {
-        const res = await fetch('https://script.google.com/macros/s/AKfycbwgji1YIPy4rajDyR4ZgTeV_Vy5jOCwSlzM5V5q1EzJcfy5ETUiOpfE0fv69uIcmZlR/exec');
+        const res = await fetch('https://script.google.com/macros/s/AKfycbwqRi57MDJVF6e1fI07qsHss-rUbYpX-jiB4NwAs0f3FmrONyyQ2eLSvoHYDrvqhATF/exec');
         const dados = await res.json();
-
         const eventos = dados.map(item => ({
           title: `${item.nome} (${item.pessoas})`,
           start: item.datahora,
           backgroundColor: item.status === "Concluída" ? "#4CAF50" : "",
           extendedProps: item
         }));
-
+        eventosGlobais = eventos;
         successCallback(eventos);
         atualizarResumoDia(eventos);
         atualizarResumoMensal(eventos);
@@ -239,28 +253,20 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
   });
 
-  btnEditar.onclick = function () {
+  document.getElementById("btn-editar").onclick = function () {
     window.open('https://docs.google.com/spreadsheets/d/1w1OitP5MIJnzuZhQEheXsTfAcKceqt3eukukMBvMW78/edit#gid=0', '_blank');
   };
 
-  btnConcluir.onclick = function () {
+  document.getElementById("btn-concluir").onclick = function () {
     const valorFinal = prompt("Digite o valor final da reserva em dinheiro:");
     if (!valorFinal) return;
-
-    fetch("https://script.google.com/macros/s/AKfycbwgji1YIPy4rajDyR4ZgTeV_Vy5jOCwSlzM5V5q1EzJcfy5ETUiOpfE0fv69uIcmZlR/exec", {
-      method: "POST",
-      body: JSON.stringify({
-        acao: "concluir",
-        email: reservaAtual.email,
-        valorFinal: valorFinal
-      })
-    })
-    .then(r => r.text())
-    .then(() => {
-      alert("✅ Reserva marcada como concluída com valor final!");
-      document.getElementById('popup').style.display = "none";
-      calendar.refetchEvents();
-    });
+    fetch("https://script.google.com/macros/s/AKfycbwqRi57MDJVF6e1fI07qsHss-rUbYpX-jiB4NwAs0f3FmrONyyQ2eLSvoHYDrvqhATF/exec?acao=concluir&email=" + encodeURIComponent(reservaAtual.email) + "&datahora=" + encodeURIComponent(reservaAtual.datahora) + "&valorFinal=" + encodeURIComponent(valorFinal))
+      .then(r => r.text())
+      .then(() => {
+        alert("✅ Reserva marcada como concluída com valor final!");
+        document.getElementById('popup').style.display = "none";
+        calendar.refetchEvents();
+      });
   };
 
   calendar.render();
